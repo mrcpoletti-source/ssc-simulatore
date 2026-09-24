@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Simulatore Instagram – SSC V2</title>
+<style>
+  :root {
+    --ink: #1c2233;
+    --muted: #6b7285;
+    --line: #dfe3ec;
+    --paper: #ffffff;
+    --wash: #f3f5f9;
+    --brand: #3b3fd8;
+    --brand-soft: #e8e9ff;
+    --ok: #1f8a5b;
+    --warn: #b4531a;
+    --radius-s: 6px;
+    --radius-l: 16px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    font: 11pt/1.45 Aptos, Tahoma, sans-serif;
+    color: var(--ink); background: var(--wash);
+    display: flex; flex-direction: column; min-width: 300px;
+  }
+  header {
+    padding: 10px 12px; background: var(--paper); border-bottom: 1px solid var(--line);
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  }
+  header h1 { font-size: 14px; margin: 0; font-weight: 600; }
+  .status { font-size: 11px; padding: 2px 8px; border-radius: 99px; white-space: nowrap; }
+  .status.ok { background: #e3f4ec; color: var(--ok); }
+  .status.warn { background: #fbeee4; color: var(--warn); }
+
+  main { flex: 1; overflow-y: auto; padding: 10px 12px; display: flex; flex-direction: column; gap: 10px; }
+  details, section { background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius-s); }
+  summary { cursor: pointer; padding: 8px 10px; font-weight: 600; }
+  .fields { padding: 4px 10px 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .fields .full { grid-column: 1 / -1; }
+  label { display: flex; flex-direction: column; gap: 3px; font-size: 11px; color: var(--muted); }
+  input, select, textarea {
+    font: inherit; color: var(--ink); padding: 5px 7px;
+    border: 1px solid var(--line); border-radius: 4px; background: var(--paper); width: 100%;
+  }
+  input:focus, select:focus, textarea:focus, button:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+
+  .conv-head { padding: 8px 10px; border-bottom: 1px solid var(--line); display: grid; grid-template-columns: 1fr auto; gap: 6px; align-items: end; }
+  .ref { font-size: 0.85em; }
+  .chat { height: 180px; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 6px; background: #fafbfd; }
+  .chat .empty { margin: auto; color: var(--muted); text-align: center; font-size: 12px; }
+  .bubble { max-width: 80%; padding: 6px 10px; border-radius: var(--radius-l); white-space: pre-wrap; word-break: break-word; }
+  .bubble.customer { align-self: flex-start; background: #eceef3; border-bottom-left-radius: 4px; }
+  .bubble.agent { align-self: flex-end; background: var(--brand); color: #fff; border-bottom-right-radius: 4px; }
+  .composer { display: flex; gap: 6px; padding: 8px 10px; border-top: 1px solid var(--line); }
+  .composer select { width: auto; }
+  .composer input { flex: 1; }
+
+  .actions { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; padding: 10px; }
+  button {
+    font: inherit; cursor: pointer; border-radius: 4px; padding: 7px 10px;
+    border: 1px solid var(--line); background: var(--paper); color: var(--ink);
+  }
+  button.primary { background: var(--brand); border-color: var(--brand); color: #fff; }
+  button.red { background: #C00000; border-color: #C00000; color: #fff; }
+  button.soft { background: var(--brand-soft); border-color: transparent; color: var(--brand); }
+  button:hover { filter: brightness(0.96); }
+  .actions small { grid-column: 1 / -1; color: var(--muted); font-size: 11px; }
+
+  .log { max-height: 220px; overflow-y: auto; font-size: 0.85em; }
+  .log-entry { padding: 6px 10px; border-top: 1px solid var(--line); }
+  .log-entry .meta { color: var(--muted); }
+  .log-entry.in .meta { color: var(--ok); }
+  .log-entry pre { font-family: inherit; margin: 4px 0 0; white-space: pre-wrap; word-break: break-all; }
+  .log-tools { display: flex; justify-content: flex-end; padding: 0 10px 8px; }
+  .log-tools button { padding: 3px 8px; font-size: 11px; }
+
+  @media (max-width: 360px) { .fields { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Simulatore Instagram</h1>
+  <span id="status" class="status"></span>
+</header>
+
+<main>
+  <details>
+    <summary>Impostazioni canale e cliente</summary>
+    <div class="fields">
+      <label>ID del Canale
+        <input id="channelId" value="instagram">
+      </label>
+      <label>Formato del Payload
+        <select id="format">
+          <option value="xml">XML</option>
+        </select>
+      </label>
+      <label class="full">Target origin postMessage
+        <input id="targetOrigin" value="*" placeholder="es. https://mytenant.crm.cloud.sap">
+      </label>
+      <label>Email del cliente
+        <input id="email" placeholder="mario.rossi@example.com">
+      </label>
+      <label>Telefono
+        <input id="ani" placeholder="+39...">
+      </label>
+      <label>ID del Cliente – CAD
+        <input id="customerId" placeholder="facoltativo">
+      </label>
+      <label>ID Esterno del Cliente – CAD
+        <input id="externalId" placeholder="facoltativo">
+      </label>
+      <label>Campo Custom – CAD
+        <input id="custom1" placeholder="facoltativo">
+      </label>
+      <label>ID Ticket – CAD
+        <input id="ticketId" placeholder="facoltativo">
+      </label>
+    </div>
+  </details>
+
+  <section>
+    <div class="conv-head">
+      <label>Oggetto
+        <input id="subject" value="Richiesta assistenza da Instagram">
+      </label>
+      <button id="newConv" type="button" class="red" title="Genera un nuovo ExternalReferenceID e svuota la chat">Nuova conversazione</button>
+      <div class="ref" style="grid-column: 1 / -1; color: var(--muted)">ExternalReferenceID: <span id="refId"></span></div>
+    </div>
+    <div id="chat" class="chat"><div class="empty">Scrivi il primo messaggio del cliente qui sotto,<br>poi invia Notifica e Accetta.</div></div>
+    <div class="composer">
+      <select id="sender" aria-label="Mittente">
+        <option value="customer">Cliente</option>
+        <option value="agent">Agente</option>
+      </select>
+      <input id="msg" placeholder="Testo del messaggio" aria-label="Testo del messaggio">
+      <button id="addMsg" type="button" class="soft">Aggiungi</button>
+    </div>
+    <div class="actions">
+      <button id="btnNotify" type="button">Notifica (NON USARE)</button>
+      <button id="btnAccept" type="button" class="red">Invia primo messaggio</button>
+      <button id="btnUpdate" type="button">Aggiorna il messaggio</button>
+      <button id="btnEnd" type="button" class="red">Chiudi il messaggio</button>
+      <small>"Invia primo messaggio" crea l'activity Message in SSC. "Chiudi il messaggio" carica il transcript completo e chiude l'interazione.</small>
+    </div>
+  </section>
+
+  <section>
+    <details open>
+      <summary>Log payload</summary>
+      <div class="log-tools"><button id="clearLog" type="button">Svuota log</button></div>
+      <div id="log" class="log"></div>
+    </details>
+  </section>
+</main>
+
+<script>
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const inIframe = window.parent !== window;
+  let refId = '';
+  let messages = [];
+
+  // --- stato connessione ---
+  const status = $('status');
+  if (inIframe) {
+    status.textContent = 'Dentro Agent Desktop';
+    status.className = 'status ok';
+  } else {
+    status.textContent = 'Aperto fuori da SSC';
+    status.className = 'status warn';
+    status.title = 'I payload vengono solo registrati nel log: nessuna finestra padre a cui inviarli.';
+  }
+
+  // --- utility ---
+  function newRefId() {
+    const bytes = new Uint8Array(16);
+    crypto.getRandomValues(bytes);
+    return Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
+  }
+  function customerLabel() {
+    return $('email').value.trim() || $('ani').value.trim() || 'Cliente';
+  }
+  function transcript() {
+    return messages
+      .map(m => (m.from === 'customer' ? customerLabel() : 'Agente') + ' : ' + m.text)
+      .join('\n');
+  }
+  function firstCustomerText() {
+    const m = messages.find(x => x.from === 'customer');
+    return m ? m.text : '';
+  }
+  function xmlEscape(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  function cadFields() {
+    const cad = {};
+    const map = { CustomerID: 'customerId', ExternalID: 'externalId', Custom_1: 'custom1', TicketID: 'ticketId' };
+    for (const [key, id] of Object.entries(map)) {
+      const v = $(id).value.trim();
+      if (v) cad[key] = v;
+    }
+    return cad;
+  }
+  function identityFields() {
+    const f = {};
+    if ($('ani').value.trim()) f.ANI = $('ani').value.trim();
+    if ($('email').value.trim()) f.Email = $('email').value.trim();
+    return f;
+  }
+
+  function buildPayload(kind) {
+    const base = { Type: 'MESSAGE' };
+    const channel = { ChannelId: $('channelId').value.trim() };
+    const ref = { ExternalReferenceID: refId };
+    switch (kind) {
+      case 'NOTIFY':
+      case 'ACCEPT':
+        return Object.assign(base,
+          { EventType: 'INBOUND', Action: kind },
+          identityFields(),
+          { Subject: $('subject').value, Transcript: firstCustomerText() },
+          ref, channel, cadFields());
+      case 'UPDATE':
+        return Object.assign(base, { EventType: 'UPDATEACTIVITY' }, ref,
+          { Transcript: transcript() }, channel);
+      case 'END':
+        return Object.assign(base, { EventType: 'UPDATEACTIVITY', Action: 'END' }, ref,
+          { Transcript: transcript() }, channel);
+    }
+  }
+
+  function serialize(obj) {
+    if ($('format').value === 'xml') {
+      let s = "<?xml version='1.0' encoding='utf-8' ?> <payload> ";
+      for (const [k, v] of Object.entries(obj)) s += '<' + k + '>' + xmlEscape(v) + '</' + k + '>';
+      return s + '</payload>';
+    }
+    return JSON.stringify(obj);
+  }
+
+  function send(kind) {
+    if (!refId) refId = newRefId(), $('refId').textContent = refId;
+    if ((kind === 'NOTIFY' || kind === 'ACCEPT') && !firstCustomerText()) {
+      log('warn', 'Aggiungi almeno un messaggio del cliente prima di ' + kind + '.');
+      return;
+    }
+    const payload = serialize(buildPayload(kind));
+    if (inIframe) {
+      try {
+        window.parent.postMessage(payload, $('targetOrigin').value.trim() || '*');
+        log('out', payload, kind + ' inviato');
+      } catch (e) {
+        log('warn', String(e), 'Errore postMessage');
+      }
+    } else {
+      log('out', payload, kind + ' (solo log, fuori iframe)');
+    }
+  }
+
+  // --- chat ---
+  function renderChat() {
+    const chat = $('chat');
+    chat.innerHTML = '';
+    if (!messages.length) {
+      chat.innerHTML = '<div class="empty">Scrivi il primo messaggio del cliente qui sotto,<br>poi invia Notifica e Accetta.</div>';
+      return;
+    }
+    for (const m of messages) {
+      const b = document.createElement('div');
+      b.className = 'bubble ' + m.from;
+      b.textContent = m.text;
+      chat.appendChild(b);
+    }
+    chat.scrollTop = chat.scrollHeight;
+  }
+  function addMessage() {
+    const text = $('msg').value.trim();
+    if (!text) return;
+    messages.push({ from: $('sender').value, text });
+    $('msg').value = '';
+    // alterna automaticamente il mittente, comodo per simulare un dialogo
+    $('sender').value = $('sender').value === 'customer' ? 'agent' : 'customer';
+    renderChat();
+    $('msg').focus();
+  }
+
+  // --- log ---
+  function log(dir, text, title) {
+    const e = document.createElement('div');
+    e.className = 'log-entry ' + dir;
+    const time = new Date().toLocaleTimeString('it-IT');
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    meta.textContent = time + '  ' + (title || (dir === 'in' ? 'Ricevuto da SSC' : dir === 'warn' ? 'Attenzione' : ''));
+    const pre = document.createElement('pre');
+    pre.textContent = text;
+    e.append(meta, pre);
+    $('log').prepend(e);
+  }
+
+  // messaggi in arrivo da SSC (es. outbound, click-to-call, playback)
+  window.addEventListener('message', (ev) => {
+    if (ev.source === window) return;
+    const data = typeof ev.data === 'string' ? ev.data : JSON.stringify(ev.data, null, 2);
+    log('in', data, 'Ricevuto da ' + (ev.origin || 'origine sconosciuta'));
+  });
+
+  // --- eventi UI ---
+  $('addMsg').onclick = addMessage;
+  $('msg').addEventListener('keydown', (e) => { if (e.key === 'Enter') addMessage(); });
+  $('btnNotify').onclick = () => send('NOTIFY');
+  $('btnAccept').onclick = () => send('ACCEPT');
+  $('btnUpdate').onclick = () => send('UPDATE');
+  $('btnEnd').onclick = () => send('END');
+  $('clearLog').onclick = () => { $('log').innerHTML = ''; };
+  $('newConv').onclick = () => {
+    refId = newRefId();
+    $('refId').textContent = refId;
+    messages = [];
+    $('sender').value = 'customer';
+    renderChat();
+  };
+
+  refId = newRefId();
+  $('refId').textContent = refId;
+})();
+</script>
+</body>
+</html>
